@@ -1,3 +1,4 @@
+from tkinter.tix import IMAGETEXT
 import customtkinter as customtkinter
 from customtkinter import *
 from tkinter import filedialog
@@ -13,10 +14,19 @@ from fanuc_py_xyw_chunk_debug import Robot
 
 # Import the global variable from the globals module
 from globals import chip_quality_array
+# ----------------------
+#  Main Programm - GUI, Datenhandling
+# Ersteller: S. Laube - SL
+# Erstelldatum: 04.05.2024
+# Änderungsdatum: 26.06.2024
+# Version: 0.10 SL - GUI erstellt und Datenhandling von .csv und .xlsx - Funktion i. O
+# Version: 0.20 SL - Kommunikation zu Fanuc, Wafer-Map und Vision Daten senden - Funktion i. O
+# Version: 0.30 SL - GUI erweitert, Fenster für Error Nachrichten, Fenster für Wafer Bild - Funktion i. O.
+# ----------------------
 
-vision_data=[]
-detectSquareImg=0
-
+def update_scrollable_frame(message: str, color: str = "black"):
+    label = customtkinter.CTkLabel(master=scrollable_frame, text=message, text_color=color)
+    label.pack(pady=5, padx=10)
 
 def file_browser():
     #print("Opening next UI")
@@ -98,8 +108,9 @@ def file_browser():
         
         return chip_quality_array
 
+
 def vision_data():
-    
+    print('Hello')
     global chip_quality_array
     global indices
     indices = [index for index, value in enumerate(chip_quality_array) if value == '1']
@@ -150,11 +161,10 @@ def vision_data():
 
     PIL_image = Image.fromarray(detectSquareImg, 'RGB')
     ctk_image = ImageTk.PhotoImage(PIL_image)   
-    image_label = customtkinter.CTkLabel(root, image=ctk_image, text="")
+    image_label = customtkinter.CTkLabel(bottom_frame, image=ctk_image, text="")
     image_label.pack(padx=20, pady=20)
 
     return vision_data, detectSquareImg
-
 
 
 def coordinate_system_func():
@@ -162,28 +172,48 @@ def coordinate_system_func():
     matrix=coordinate_system.get_coordinateSystem()
     return matrix
 
+
 customtkinter.set_appearance_mode("dark")
+customtkinter.set_default_color_theme("dark-blue")
 
 root = customtkinter.CTk()
-root.geometry("700x800")
+root.geometry("1100x900")
 
-frame = customtkinter.CTkFrame(master=root)
-frame.pack(pady=20, padx=60, fill="both", expand=True)
+root.grid_rowconfigure(0, weight=0)  # Fixed height for upper frames
+root.grid_rowconfigure(1, weight=1)  # Remaining space for bottom frame
+root.grid_columnconfigure(0, weight=1)
 
-label = customtkinter.CTkLabel(master=frame, text="Importieren der Datei")
+main_container = customtkinter.CTkFrame(master=root, height=80)
+main_container.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+
+main_container.grid_columnconfigure(0, weight=1)
+main_container.grid_columnconfigure(1, weight=6)
+
+main_frame = customtkinter.CTkFrame(master=main_container)
+main_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+
+label = customtkinter.CTkLabel(master=main_frame, text="Import Wafer-Map", font=("Arial", 20))
 label.pack(pady=12, padx=10)
 
-button = customtkinter.CTkButton(master=frame, text="Öffnen", command=file_browser)
+button = customtkinter.CTkButton(master=main_frame, text="Öffnen", command=file_browser)
 button.pack(pady=12, padx=10)
 
-# Add another button to execute vision_data
-vision_button = customtkinter.CTkButton(master=frame, text="Vision Data", command=vision_data)
+label = customtkinter.CTkLabel(master=main_frame, text="Import Vision Daten", font=("Arial", 20))
+label.pack(pady=12, padx=10)
+
+vision_button = customtkinter.CTkButton(master=main_frame, text="Vision Data", command=vision_data)
 vision_button.pack(pady=12, padx=10)
 
-
-# Add another button to execute coordinatesystem_data
-coordinat_button = customtkinter.CTkButton(master=frame, text="Kalibration", command=coordinate_system_func)
+coordinat_button = customtkinter.CTkButton(master=main_frame, text="Kalibration", command=coordinate_system_func)
 coordinat_button.pack(pady=12, padx=10)
 
+scrollable_frame = customtkinter.CTkScrollableFrame(master=main_container)
+scrollable_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
+
+bottom_frame = customtkinter.CTkFrame(master=root)
+bottom_frame.grid(row=1, column=0, padx=20, pady=20, sticky="nsew")
+
+bottom_label = customtkinter.CTkLabel(master=bottom_frame, text="Wafer Bild", font=("Arial", 20))
+bottom_label.pack(pady=12, padx=5)
 
 root.mainloop()
