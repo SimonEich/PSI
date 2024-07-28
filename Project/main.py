@@ -11,11 +11,15 @@ import vision
 import coordinate_system
 from fanuc_py_xyw_chunk_debug import Robot
 
+# Import the global variable from the globals module
+from globals import chip_quality_array
+
 vision_data=[]
 detectSquareImg=0
 
+
 def file_browser():
-    print("Opening next UI")
+    #print("Opening next UI")
     file = filedialog.askopenfile()
     if file:
         file_extension = os.path.splitext(file.name)[1]
@@ -35,6 +39,8 @@ def file_browser():
 
         # Information zu Qualität wird in VAR gespeichert
         quality_values = [str(row[1]) for row in data_array]
+        global chip_quality_array
+        chip_quality_array = quality_values
         # Anzahl von Chip wird herausgelesen
         chip_quantity = len(quality_values)
         chip_quantity_ = f"{chip_quantity:02}"
@@ -46,7 +52,7 @@ def file_browser():
         # STRING für KAREL (Fanuc) wird erstellt
         # setregister --> Funktionsname in Karel
         cmd = f"setregister:{chip_quantity_}:{good_chip_count_}:{':'.join(quality_values)}"
-        print(cmd)
+        #print(cmd)
 
         data_array = [row for row in data_array if row[1] != 0]
 
@@ -76,20 +82,31 @@ def file_browser():
             ee_DO_type="RDO",
             ee_DO_num=7,
         )
-        robot.connect()
-        robot.setregister(cmd=cmd)
-        robot.disconnect()
+        try:
+            robot.connect()
+            robot.setregister(cmd=cmd)
+            robot.disconnect()
+        except: 
+            print("Robot connection failed")
 
         output_file_xlsx = f"{waver_typ}_Wafer_{wafer}_Ablage_{current_datetime.strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
         waver_info_df.to_excel(output_file_xlsx, index=False)
 
         output_file_csv = f"{waver_typ}_Wafer_{wafer}_Ablage_{current_datetime.strftime('%Y-%m-%d_%H-%M-%S')}.csv"
         waver_info_df.to_csv(output_file_csv, index=False)
-        print(f"Files saved as {output_file_xlsx} and {output_file_csv}")
-
+        #print(f"Files saved as {output_file_xlsx} and {output_file_csv}")
+        
+        return chip_quality_array
 
 def vision_data():
-    vision_data = vision.get_vision_data()
+    
+    global chip_quality_array
+    global indices
+    indices = [index for index, value in enumerate(chip_quality_array) if value == '1']
+
+    if chip_quality_array != []:
+        vision_data = vision.get_vision_data(indices)
+    
         
     #[
         #(1.0, 2.0, -3.0), (1.1, 20.1, 3.1), (1.2, 29.2, 0.2), (10.3, 2.3, 3.3),
@@ -102,6 +119,7 @@ def vision_data():
         #(3.8, 4.8, 3.8), (3.9, 4.9, 3.9), (4.0, 5.0, 3.0), (4.1, 5.1, 3.1),
         #(4.2, 5.2, 3.2), (4.3, 5.3, 3.3), (4.4, 5.4, 3.4), (4.5, 5.5, 3.5)
     #]  # 36 tuples of (x, y, w)
+    
     robot = Robot(
         robot_model="Fanuc",
         host="127.0.0.1",
@@ -109,24 +127,24 @@ def vision_data():
         ee_DO_type="RDO",
         ee_DO_num=7,
     )
-    robot.connect()
-    robot.send_vision_data(vision_data)
-    robot.disconnect()
-
-
-def vision_data_test():
     
-   
-     # Transform the vision_data points
-    vision_data, detectSquareImg = vision.get_vision_data()
-    print(f'vision data is: {vision_data}')
-    print(f'number of center: {len(vision_data)}')
+    try:
+        robot.connect()
+        robot.send_vision_data(vision_data)
+        robot.disconnect()
+    except: 
+        print("Robot connection failed")
+    
+    # Transform the vision_data points
+    vision_data, detectSquareImg = vision.get_vision_data(indices)
+    #print(f'vision data is: {vision_data}')
+    #print(f'number of center: {len(vision_data)}')
     len_vision_data = len(vision_data)
     
 
-    if len_vision_data == 36:
-        label = customtkinter.CTkLabel(master=frame, text=f"Wafer data: {str(vision_data)}")
-        label.pack(pady=12, padx=10)
+    #if len_vision_data == 36:
+    #    label = customtkinter.CTkLabel(master=frame, text=f"Wafer data: {str(vision_data)}")
+    #    label.pack(pady=12, padx=10)
     # Convert the image data to a format compatible with ImageTk
     # Convert to OpenCV image
 
@@ -137,7 +155,10 @@ def vision_data_test():
 
     return vision_data, detectSquareImg
 
+
+
 def coordinate_system_func():
+
     matrix=coordinate_system.get_coordinateSystem()
     return matrix
 
@@ -159,9 +180,6 @@ button.pack(pady=12, padx=10)
 vision_button = customtkinter.CTkButton(master=frame, text="Vision Data", command=vision_data)
 vision_button.pack(pady=12, padx=10)
 
-# Add another button to execute vision_data test
-visiontest_button = customtkinter.CTkButton(master=frame, text="Vision Data Test button", command=vision_data_test)
-visiontest_button.pack(pady=12, padx=10)
 
 # Add another button to execute coordinatesystem_data
 coordinat_button = customtkinter.CTkButton(master=frame, text="Kalibration", command=coordinate_system_func)

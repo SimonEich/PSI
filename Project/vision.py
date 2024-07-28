@@ -2,11 +2,17 @@ import cv2
 import numpy as np
 from math import sqrt
 
+# Import the global variable from the globals module
+from globals import chip_quality_array
+from globals import indices
+
+indices = indices
+
 passed=0
 missed=[]
 jumped= 0
 
-def get_vision_data():
+def get_vision_data(indices):
         filename="Project/txt/config.txt"
         image_path = f'test-img/test_image10/photo_1.jpg'
 
@@ -235,8 +241,13 @@ def get_vision_data():
                 return True, approx
             return False, None
 
-        def detect_squares(square_image, min_square_size, max_square_size):
+        def detect_squares(square_image, min_square_size, max_square_size, indices):
+        
+            print(f'indicies{indices}')
 
+            #indices = [index for index, value in enumerate(chip_quality_array) if value == '1']
+            #print(f'chip_qualtiy{chip_quality_array}')
+            #print(f'indic{indices}')
             # Convert to grayscale
             gray = cv2.cvtColor(square_image, cv2.COLOR_BGR2GRAY)
 
@@ -275,21 +286,34 @@ def get_vision_data():
             num_array = np.array(angle_array)
             angle = np.mean(num_array)
             angle= float(angle)
-
             # Sort squares by their top-left corner positions (reading order: top to bottom, left to right)
             squares.sort(key=lambda s: (s[2][1], s[2][0]))
 
             # Draw the squares, their centers, and numbers
             for idx, (square, center, bbox) in enumerate(squares, start=1):
-                x, y, w, h = bbox
-                cv2.drawContours(image, [square], -1, (0, 255, 0), 2)
-                cv2.circle(image, center, 5, (0, 0, 255), -1)
+                 x, y, w, h = bbox
+                 cv2.drawContours(image, [square], -1, (0, 255, 0), 2)
+                 cv2.circle(image, center, 5, (0, 0, 255), -1)
+                 print(f'indicccc{indices}')
+                 # Check if idx is in indices and set the color
+                 if idx in indices:
+                     color = (255, 0, 0)  # Red color for indices in the list
+                 else:
+                     #print(idx)
+                     color = (255, 255, 0)  # Yellow color for indices not in the list
+
+                 cv2.putText(image, str(idx), (x, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+
                 # Draw the number
-                cv2.putText(image, str(idx), (x, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
-            detect_squares=image.copy()
+                #if idx == 2:
+                #    cv2.putText(image, str(idx), (x, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+                #else:
+                #    cv2.putText(image, str(idx), (x, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+            detect_squares_img=image.copy()
+            
             num_center= len(centers_squares)
            
-            return centers_squares, center, num_center, angle, detect_squares
+            return centers_squares, center, num_center, angle, detect_squares_img
 
         def read_config_file(filename):
             points = []
@@ -339,7 +363,22 @@ def get_vision_data():
             return vision_data_center
 
             
-                
+        def filter_points_by_quality(coords, qual, center):
+            # Check if both arrays have the same length
+            if len(coords) != len(qual):
+
+                # Filter points where quality is 1
+                filtered_points = coords[qual == 1]
+
+                for idx, (square, filtered_points, bbox) in enumerate(center, start=1):
+                    x, y, w, h = bbox
+                    cv2.drawContours(image, [square], -1, (0, 255, 0), 2)
+                    cv2.circle(image, center, 5, (0, 0, 255), -1)
+                    # Draw the number
+                    cv2.putText(image, str(idx), (x, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+
+            return filtered_points
+ 
 
 
 
@@ -352,8 +391,10 @@ def get_vision_data():
         white_black_lines = find_last_line(search_line_image, dilated_edges, black_image)
         circular_region= circle_lines_SW(white_black_lines, search_line_image)
         square_image = change_background_to_white(circular_region)
-        detect_squares_centers, center, num_center, angle, detect_squares_img = detect_squares(square_image, min_square_size, max_square_size)
+        detect_squares_centers, center, num_center, angle, detect_squares_img = detect_squares(square_image, min_square_size, max_square_size, indices)
         matrix = read_config_file(filename)
+        #filtered_points = filter_points_by_quality(center, chip_quality_array, center)
+
         
         if (num_center==36):
             vision_data = center_transformation(detect_squares_centers, center, angle)
@@ -362,7 +403,7 @@ def get_vision_data():
             return "Error: The number of squares is not 36"
 
 
-center_squares = get_vision_data()
+#center_squares = get_vision_data()
 
 #print(square_array)
  # Show the result
